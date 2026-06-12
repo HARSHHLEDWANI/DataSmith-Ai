@@ -1,0 +1,26 @@
+flowchart TD
+    U[User: text + images + PDFs + audio] -->|multipart POST /chat| API[FastAPI route]
+    API --> ING[Ingestion Router]
+    ING --> IMG[Image OCR pytesseract]
+    ING --> PDF[PDF extract PyMuPDF + OCR fallback]
+    ING --> AUD[Audio STT Groq Whisper]
+    ING --> TXT[Text normalize]
+    IMG --> CTX[Unified context: ExtractedInput list]
+    PDF --> CTX
+    AUD --> CTX
+    TXT --> CTX
+    CTX --> ORC[Orchestrator]
+    ORC --> PL[Planner: LLM to strict JSON plan]
+    PL -->|needs_clarification| CLAR[Ask follow-up, park session, wait]
+    PL -->|plan| COST[Cost estimator]
+    COST --> EX[Executor: run steps, chain outputs, retry]
+    EX <--> REG[Tool Registry]
+    REG --> T1[summarize]
+    REG --> T2[sentiment]
+    REG --> T3[code_explain]
+    REG --> T4[youtube_transcript]
+    REG --> T5[qa]
+    REG --> T6[compare]
+    EX --> RESP[Response: extracted_inputs + plan_trace + final_answer]
+    RESP -->|SSE /runs/id/stream| U
+    CLAR --> U
