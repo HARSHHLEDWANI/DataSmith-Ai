@@ -1,8 +1,3 @@
-/* Chat client for the multimodal agent.
- * File selection + drag/drop, posting to /chat, rendering the extracted-input
- * and plan sections plus the plain-text answer, and SSE streaming of the answer.
- * Always streams; errors render inline in mono where they happen.
- */
 (() => {
   "use strict";
 
@@ -19,7 +14,6 @@
   let pendingFiles = [];
   let conversationId = localStorage.getItem("conversation_id") || "";
 
-  // ---- helpers -----------------------------------------------------------
   function showError(msg) {
     composerError.textContent = msg;
     composerError.hidden = false;
@@ -42,18 +36,25 @@
     return `<span class="st st-${s}">${tokens[s] || tokens.pending}</span>`;
   }
 
-  // ---- health ------------------------------------------------------------
-  fetch("/health").then((r) => r.json()).then((h) => {
-    if (h.llm_configured) {
-      healthEl.textContent = `${h.provider} / ${h.model}`;
-      healthEl.classList.add("ok");
-    } else {
-      healthEl.textContent = "LLM_API_KEY not set";
+  fetch("/health")
+    .then((r) => {
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      return r.json();
+    })
+    .then((h) => {
+      if (h.llm_configured) {
+        healthEl.textContent = `${h.provider} / ${h.model}`;
+        healthEl.classList.add("ok");
+      } else {
+        healthEl.textContent = "LLM_API_KEY not set";
+        healthEl.classList.add("warn");
+      }
+    })
+    .catch((err) => {
+      healthEl.textContent = `offline (${err.message})`;
       healthEl.classList.add("warn");
-    }
-  }).catch(() => { healthEl.textContent = "offline"; healthEl.classList.add("warn"); });
+    });
 
-  // ---- file chips --------------------------------------------------------
   function renderChips() {
     fileChips.innerHTML = "";
     pendingFiles.forEach((f, i) => {
@@ -81,14 +82,12 @@
     dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.remove("dragover"); }));
   dropzone.addEventListener("drop", (e) => { if (e.dataTransfer?.files) addFiles(e.dataTransfer.files); });
 
-  // ---- textarea autosize + examples -------------------------------------
   input.addEventListener("input", () => {
     input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 140) + "px";
   });
   document.querySelectorAll(".chip-example").forEach((b) =>
     b.addEventListener("click", () => { input.value = b.dataset.fill; input.focus(); }));
 
-  // ---- message rendering -------------------------------------------------
   function addUserMsg(text, files) {
     if (welcome) welcome.style.display = "none";
     const fileLine = files.length ? `\nattached: ${files.map((f) => f.name).join(", ")}` : "";
@@ -144,7 +143,6 @@
       <div class="body"><ul class="steps">${items || '<li class="pending-line">planning</li>'}</ul>${costLine}</div></details>`;
   }
 
-  // ---- send --------------------------------------------------------------
   async function send() {
     const text = input.value.trim();
     if (!text && pendingFiles.length === 0) return;
@@ -167,9 +165,13 @@
     let data;
     try {
       const resp = await fetch("/chat", { method: "POST", body: form });
+      if (!resp.ok) {
+        const body = await resp.text();
+        throw new Error(`${resp.status} ${resp.statusText}: ${body.slice(0, 120)}`);
+      }
       data = await resp.json();
     } catch (e) {
-      bubble.innerHTML = `<div class="answer err">network error: ${esc(String(e))}</div>`;
+      bubble.innerHTML = `<div class="answer err">request failed: ${esc(String(e))}</div>`;
       sendBtn.disabled = false; return;
     }
 
@@ -207,7 +209,6 @@
     sendBtn.disabled = false;
   }
 
-  // ---- SSE streaming of the final answer --------------------------------
   function streamAnswer(runId, el, fallback) {
     let acc = "";
     const es = new EventSource(`/runs/${runId}/stream`);
@@ -217,7 +218,7 @@
         if (d.token) { acc += d.token; el.textContent = acc; scrollDown(); }
         if (d.done) { es.close(); if (!acc) el.textContent = fallback || ""; }
         if (d.error) { es.close(); el.textContent = fallback || d.error; }
-      } catch (_) { /* ignore keepalives */ }
+      } catch (_) {}
     };
     es.onerror = () => { es.close(); if (!acc) el.textContent = fallback || ""; };
   }
