@@ -122,7 +122,11 @@ class LLMClient:
             )
             return resp.choices[0].message.content or ""
 
-        raw = await self._with_retry(lambda: _call(messages), what="chat_json")
+        safe_messages = messages
+        if not any("json" in (m.get("content") or "").lower() for m in messages):
+            safe_messages = [{"role": "system", "content": "Respond with a valid JSON object."}] + list(messages)
+
+        raw = await self._with_retry(lambda: _call(safe_messages), what="chat_json")
         try:
             return json.loads(_extract_json_object(raw))
         except (json.JSONDecodeError, ValueError):

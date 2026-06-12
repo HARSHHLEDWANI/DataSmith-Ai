@@ -24,6 +24,8 @@ AVAILABLE TOOLS:
   ]
 }}
 
+Respond ONLY with a valid JSON object — no markdown, no extra text.
+
 RULES:
 1. If the goal is ambiguous, missing, or refers to something not present in any \
 input, set needs_clarification=true, provide ONE specific clarifying_question, \
