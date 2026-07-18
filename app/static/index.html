@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>multimodal agent</title>
+  <title>triage</title>
   <meta name="description"
-        content="A small tool that reads text, images, PDFs and audio, plans the steps it needs, and answers in plain text." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='5'%20fill='%231A1916'/%3E%3Ctext%20x='16'%20y='22'%20font-size='19'%20fill='%23FAF9F6'%20text-anchor='middle'%20font-family='monospace'%3Ea%3C/text%3E%3C/svg%3E" />
+        content="triage — throw messy, mixed input at it: PDFs with links buried inside, screenshots, audio, questions. It detects every input, plans the steps, and answers with sources." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='5'%20fill='%231A1916'/%3E%3Ctext%20x='16'%20y='22'%20font-size='19'%20fill='%23FAF9F6'%20text-anchor='middle'%20font-family='monospace'%3Et%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -15,18 +15,33 @@
 <body>
   <div id="app">
     <header class="topbar">
-      <span class="app-name">multimodal agent</span>
+      <span class="app-name">triage</span>
       <span class="model" id="health">checking</span>
     </header>
 
     <main id="chat" class="chat">
       <div class="welcome" id="welcome">
-        <p class="empty-line">Ask something, or attach files — images, PDFs, audio.</p>
+        <p class="hero-title">Built for messy input.</p>
+        <p class="empty-line">Drop a PDF with a video link buried inside, a screenshot, an audio note,
+          and a question — all in one message. triage pulls it apart, detects every input,
+          plans the steps, and answers in one shot with sources.</p>
         <ul class="examples">
-          <li><button class="chip-example" data-fill="Summarize this">summarize a document</button></li>
-          <li><button class="chip-example" data-fill="What is the sentiment of this text?">analyze sentiment of some text</button></li>
-          <li><button class="chip-example" data-fill="Explain this code, find bugs, and give time complexity">explain code and find bugs</button></li>
-          <li><button class="chip-example" data-fill="Fetch the YouTube link in this PDF and summarize the video">summarize a youtube link inside a pdf</button></li>
+          <li><button class="chip-example" data-fill="Follow the YouTube link inside this PDF and tell me if the video contradicts the document">
+            <strong>pdf + the video linked inside it</strong>
+            <span>follow the link, fetch the transcript, check it against the doc</span>
+          </button></li>
+          <li><button class="chip-example" data-fill="Compare the chart in this screenshot against the numbers in this report">
+            <strong>chart screenshot + report pdf</strong>
+            <span>read both, compare the numbers, flag mismatches</span>
+          </button></li>
+          <li><button class="chip-example" data-fill="Compare what the audio recording says with the numbers in this report and summarize where they disagree">
+            <strong>voice memo + report</strong>
+            <span>transcribe the audio, cross-check it against the doc</span>
+          </button></li>
+          <li><button class="chip-example" data-fill="Explain the code in this file and fact-check the article linked in the comments">
+            <strong>code file + the article linked in its comments</strong>
+            <span>explain the code, follow the link, fact-check the article</span>
+          </button></li>
         </ul>
       </div>
     </main>
@@ -47,7 +62,7 @@
                   placeholder="Type a message, or answer the question above"></textarea>
         <button id="sendBtn" class="send">Send</button>
       </div>
-      <p class="hint">max 25mb per file · drag &amp; drop works · text-only output</p>
+      <p class="hint">attach several files at once · links inside PDFs are followed · max 25mb per file</p>
     </footer>
   </div>
   <script src="/static/app.js"></script>

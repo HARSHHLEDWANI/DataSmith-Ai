@@ -1,15 +1,20 @@
-# Agentic Multi-Modal AI
+# triage
 
-A FastAPI application that accepts text, images, PDFs and audio in a single request, figures out what you want across all of them, and plans and runs a tool chain to get it done. If the goal is ambiguous it asks one follow-up question instead of guessing. Every output is plain text.
+**Built for messy input.** Drop a PDF with a YouTube link buried inside it, a screenshot of a chart, an audio note, and a question — all in one message. triage pulls the bundle apart, enumerates every input it detected (including references embedded *inside* your files), plans a tool chain to resolve each one, and answers in one shot with per-source attribution ("From the PDF: … / From the linked video: … / From the screenshot: …").
 
-Built for a 48-hour assignment. Single deployable service — no separate frontend build, no database.
+Generic assistants handle one clean file at a time. triage is a planner-executor agent built for the composite case, and it shows its work: the detected-inputs manifest and the step-by-step plan are part of every response.
+
+Single deployable FastAPI service — no separate frontend build, no database.
 
 ## Features
 
-- Multi-file upload in one request: images (JPG/PNG), PDFs (text or scanned), audio (MP3/WAV/M4A), plain text
+- Composite input in one request: mix images (JPG/PNG), PDFs (text or scanned), audio (MP3/WAV/M4A), and plain text freely
+- Detected-inputs manifest: every request starts with an explicit inventory ("1 PDF — contains 1 embedded YouTube link; 1 image; user question"), fed to the planner and shown in the UI
+- Embedded references followed automatically: YouTube URLs and links found inside PDF text *and* PDF link annotations become planner inputs in their own right
+- YouTube transcript fallback: if captions are unavailable, triage downloads the audio via yt-dlp and transcribes it with Groq's hosted Whisper
+- Source-attributed answers: when a run resolves multiple sources, a synthesis step merges them with explicit "From the …" attribution instead of one blended summary
 - OCR for images and scanned PDF pages, with per-page confidence scores
 - Audio transcription via Groq's hosted Whisper API, with duration
-- YouTube URLs detected anywhere in any input (including inside a PDF) and fetched automatically
 - LLM-generated plans: the agent decides which tools to run and in what order per request
 - Clarification gate: if the goal is missing or ambiguous, it asks before doing anything
 - Tool chaining: steps pipe their output forward (e.g. fetch transcript → summarize it)
@@ -106,6 +111,8 @@ Tesseract and ffmpeg are included in the image.
 | `MAX_FILE_SIZE_MB` | `25` | Per-file upload limit |
 | `LLM_TIMEOUT_S` | `60` | Per-call timeout |
 | `MAX_CONTEXT_CHARS` | `6000` | Per-input truncation budget for the planner |
+| `YT_AUDIO_FALLBACK` | `true` | Download audio via yt-dlp and transcribe with Whisper when YouTube captions fail |
+| `YT_FALLBACK_MAX_DURATION_S` | `900` | Longest video the audio fallback will download |
 | `PORT` | `8000` | Server port (Render sets this automatically) |
 
 Get a free Groq key at https://console.groq.com. One key covers both chat and Whisper.
@@ -128,6 +135,8 @@ LLM_MODEL=deepseek-chat
 
 Alternatively use the included `render.yaml` via New → Blueprint.
 
+**If you previously deployed this as `datasmith-ai`:** Render Blueprints match services by `name`. Since `render.yaml` now says `name: triage`, the next Blueprint sync will create a *new* service (with a new `*.onrender.com` URL) and mark the old one for deletion, and you'll need to re-enter the `sync: false` secrets (`LLM_API_KEY`, `GROQ_API_KEY`) on the new service. To keep the existing service and URL, rename it to `triage` in the Render dashboard *before* syncing this change.
+
 One thing to know about the free tier: services sleep after about 15 minutes idle. The first request after waking takes 30-50 seconds. Conversation state is in-memory so it resets on restart — any pending clarification questions are cleared.
 
 ## Sample test cases
@@ -136,7 +145,7 @@ One thing to know about the free tier: services sleep after about 15 minutes idl
 Upload a PDF or screenshot, type "Summarize this." The agent OCR-extracts the text (with confidence score for scanned pages) and runs the summarizer: one-line summary, three bullets, five-sentence paragraph.
 
 **2. YouTube link inside a PDF**
-Upload a PDF that has a YouTube URL in it, type "Fetch the YouTube link in this PDF and summarize the video." The planner chains youtube_transcript → summarize with no extra steps from you. If captions are disabled on the video, it returns a message saying so instead of an error.
+Upload a PDF that has a YouTube URL in it, type "Fetch the YouTube link in this PDF and summarize the video." The manifest lists the embedded link, and the planner chains youtube_transcript → summarize with no extra steps from you. If captions are disabled on the video, triage downloads the audio with yt-dlp and transcribes it via Groq Whisper; if that also fails (YouTube blocks many datacenter IPs, including Render's), it returns a clear message instead of an error.
 
 **3. Audio transcription**
 Upload an MP3 or WAV, type "Transcribe and summarize this." Whisper transcribes it (audio duration shown in the extracted-text panel), then the summarizer runs on the transcript.
@@ -146,6 +155,19 @@ Paste or upload code with "Explain this code, find bugs, and give time complexit
 
 **5. Cross-input reasoning + ambiguity gate**
 Upload two documents and type "Do these discuss the same topic?" — the compare tool reasons across both. Or upload a file with no instruction at all — the agent asks what you want to do with it before touching any tools.
+
+## Sample Test Cases and How to Check
+
+The repository includes a pytest suite under `tests/test_sample_cases.py` that performs quick, environment-robust checks for the five agent scenarios (audio transcription fallback, PDF extraction error handling, image OCR behavior, YouTube URL detection, and tool registry registration). These tests are designed to run on CI without provider keys and will assert the agent behaves gracefully when external services or binaries are unavailable.
+
+- Manual verification: start the app and exercise each scenario in the UI or via the `/chat` API.
+- Run the quick automated tests locally with:
+
+```bash
+pytest -q
+```
+
+If you want full end-to-end tests that upload example files and assert semantic outputs (e.g. summaries contain N sentences, action items are returned, transcripts include duration), I can scaffold those next — they require small sample fixtures (audio, PDF, image) and optionally API-key configuration to run provider-backed features.
 
 ## API
 

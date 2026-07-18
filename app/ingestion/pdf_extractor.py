@@ -13,6 +13,7 @@ logger = get_logger("ingestion.pdf")
 
 MIN_TEXT_CHARS = 30
 OCR_RENDER_DPI = 200
+MAX_LINK_URIS = 20
 
 
 def extract_pdf(data: bytes, source: str) -> ExtractedInput:
@@ -25,6 +26,7 @@ def extract_pdf(data: bytes, source: str) -> ExtractedInput:
     page_texts: list[str] = []
     ocr_pages: list[int] = []
     ocr_confidences: list[float] = []
+    link_uris: list[str] = []
 
     try:
         from PIL import Image
@@ -48,6 +50,16 @@ def extract_pdf(data: bytes, source: str) -> ExtractedInput:
                         extra={"data": {"source": source, "page": page_num, "error": str(exc)}},
                     )
             page_texts.append(text)
+            try:
+                for link in page.get_links():
+                    uri = link.get("uri")
+                    if uri and uri not in link_uris and len(link_uris) < MAX_LINK_URIS:
+                        link_uris.append(uri)
+            except Exception as exc:
+                logger.warning(
+                    "pdf link extraction failed",
+                    extra={"data": {"source": source, "page": page_num, "error": str(exc)}},
+                )
     finally:
         doc.close()
 
@@ -59,6 +71,8 @@ def extract_pdf(data: bytes, source: str) -> ExtractedInput:
     meta: dict[str, object] = {"pages": len(page_texts), "ocr_pages": ocr_pages, "chars": len(full_text)}
     if mean_conf is not None:
         meta["ocr_confidence"] = mean_conf
+    if link_uris:
+        meta["link_uris"] = link_uris
 
     if not full_text.strip():
         return ExtractedInput(

@@ -49,6 +49,8 @@ class RunState(BaseModel):
     clarifying_question: str | None = None
     cost: CostEstimate | None = None
     extracted_inputs: list[dict[str, Any]] = Field(default_factory=list)
+    detected_references: list[dict[str, Any]] = Field(default_factory=list)
+    input_manifest: str = ""
     error: str | None = None
 
 

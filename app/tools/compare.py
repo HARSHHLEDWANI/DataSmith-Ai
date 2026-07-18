@@ -8,7 +8,9 @@ _SYSTEM = (
     "different sources (which may be PDFs, images, audio transcripts or text). "
     "Reason ACROSS all of them to answer the user's question. Explicitly compare "
     "and contrast: note where sources agree, disagree, or complement each other. "
-    "Reference sources by their [name]. Output plain text only."
+    "Attribute every conclusion to its source by name (e.g. 'From report.pdf: ... "
+    "From the audio: ...') so the reader can trace where each claim came from. "
+    "Output plain text only."
 )
 
 

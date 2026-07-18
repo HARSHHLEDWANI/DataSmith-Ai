@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: datasmith-ai
+    name: triage
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile

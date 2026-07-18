@@ -14,6 +14,7 @@ from app.agent.session_store import (
 from app.agent.trace import RunState
 from app.config import settings
 from app.ingestion.models import ExtractedInput
+from app.ingestion.references import describe_manifest, detect_references
 from app.logging_config import get_logger
 from app.tools.registry import ToolRegistry, register_all_tools
 
@@ -81,10 +82,15 @@ class Orchestrator:
         if convo.transcript:
             history = history + ["Earlier in this conversation:"] + convo.transcript[-6:]
 
+        refs = detect_references(effective_inputs)
+        manifest = describe_manifest(effective_inputs, refs)
+        state.detected_references = [r.model_dump() for r in refs]
+        state.input_manifest = manifest
+
         state.status = "planning"
         if progress:
             await progress(state)
-        plan = await make_plan(query, effective_inputs, self.registry, history)
+        plan = await make_plan(query, effective_inputs, self.registry, history, manifest=manifest)
 
         if plan.needs_clarification and plan.clarifying_question:
             question = plan.clarifying_question

@@ -105,6 +105,16 @@
     return el;
   }
 
+  function renderManifest(manifest, refs) {
+    if (!manifest) return "";
+    const refLines = (refs || []).map((r) => {
+      const label = r.kind === "youtube" ? `youtube link ${r.value}` : r.url;
+      const via = r.via === "pdf_annotation" ? ", clickable link" : "";
+      return `<span class="ref">&#8627; ${esc(label)} (inside ${esc(r.found_in)}${via})</span>`;
+    }).join("");
+    return `<div class="manifest">${esc(manifest)}${refLines}</div>`;
+  }
+
   function renderInputsSection(inputs) {
     if (!inputs || !inputs.length) return "";
     const cards = inputs.map((i) => {
@@ -178,7 +188,8 @@
     conversationId = data.conversation_id || conversationId;
     localStorage.setItem("conversation_id", conversationId);
 
-    let html = renderInputsSection(data.extracted_inputs);
+    let html = renderManifest(data.input_manifest, data.detected_inputs);
+    html += renderInputsSection(data.extracted_inputs);
 
     if (data.clarification) {
       shell.classList.add("clarifying");

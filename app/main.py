@@ -26,8 +26,12 @@ logger = get_logger("main")
 STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(
-    title="Agentic Multi-Modal AI",
-    description="Agentic assistant: ingest text/images/PDFs/audio, plan a tool chain, ask when ambiguous, return text.",
+    title="triage",
+    description=(
+        "Agent for messy, composite input: accepts PDFs (including links buried "
+        "inside them), images, audio, and questions in one request, plans a "
+        "visible tool chain, and answers with source attribution."
+    ),
     version="1.0.0",
 )
 
@@ -122,6 +126,8 @@ def _serialize_state(state: RunState, conversation_id: str) -> dict[str, object]
         "run_id": state.run_id,
         "status": state.status,
         "extracted_inputs": state.extracted_inputs,
+        "detected_inputs": state.detected_references,
+        "input_manifest": state.input_manifest,
         "plan_trace": [s.model_dump() for s in state.steps],
         "cost": state.cost.model_dump() if state.cost else None,
         "final_answer": state.final_answer,

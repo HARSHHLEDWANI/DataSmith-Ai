@@ -26,7 +26,7 @@ def _duration_seconds(data: bytes, source: str) -> float | None:
     return None
 
 
-async def _transcribe(data: bytes, source: str) -> str:
+async def transcribe_bytes(data: bytes, source: str) -> str:
     url = settings.groq_base_url.rstrip("/") + "/audio/transcriptions"
     headers = {"Authorization": f"Bearer {settings.whisper_key()}"}
     last_exc: Exception | None = None
@@ -52,6 +52,9 @@ async def _transcribe(data: bytes, source: str) -> str:
     raise RuntimeError(f"transcription failed after retry: {last_exc}")
 
 
+_transcribe = transcribe_bytes
+
+
 async def extract_audio(data: bytes, source: str) -> ExtractedInput:
     duration = _duration_seconds(data, source)
     meta: dict[str, object] = {}
@@ -67,7 +70,7 @@ async def extract_audio(data: bytes, source: str) -> ExtractedInput:
         )
 
     try:
-        text = normalize_text(await _transcribe(data, source))
+        text = normalize_text(await transcribe_bytes(data, source))
     except Exception as exc:
         return ExtractedInput(source=source, type="audio", meta=meta, error=f"Transcription failed: {exc}")
 

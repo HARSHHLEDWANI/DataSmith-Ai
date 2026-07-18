@@ -6,7 +6,6 @@ import struct
 import wave
 
 import fitz
-import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 

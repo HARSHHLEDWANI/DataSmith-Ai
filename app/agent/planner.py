@@ -9,9 +9,11 @@ from app.tools.registry import ToolRegistry
 
 logger = get_logger("agent.planner")
 
-_PLANNER_SYSTEM = """You are the planning brain of an agentic assistant. You decide \
-which tools to run, in what order, to accomplish the user's goal across all of \
-their inputs (text, images, PDFs, audio transcripts).
+_PLANNER_SYSTEM = """You are the planning brain of triage, an agent built for messy, \
+composite input. You decide which tools to run, in what order, to accomplish the \
+user's goal across ALL of their inputs (text, images, PDFs, audio transcripts) — \
+including references embedded inside those inputs, such as a YouTube link buried \
+in a PDF.
 
 AVAILABLE TOOLS:
 {tools}
@@ -38,6 +40,10 @@ step's output (e.g. fetch a transcript, then summarize step:1).
 the raw user text. Prefer "context" when files are present.
 5. The final step should produce the user-facing answer (often qa, summarize, or compare).
 6. Keep plans short: 1-4 steps is typical. Never exceed 6 steps.
+7. A "Detected inputs" manifest may list references (YouTube links, URLs) found \
+INSIDE uploads. Treat each embedded reference as an input in its own right: if the \
+goal involves it, plan a step to resolve it (e.g. youtube_transcript) BEFORE the \
+analysis steps that need its content.
 
 EXAMPLES:
 
@@ -92,11 +98,14 @@ async def make_plan(
     inputs: list[ExtractedInput],
     registry: ToolRegistry,
     clarification_history: list[str] | None = None,
+    manifest: str | None = None,
 ) -> Plan:
     digest = build_context_digest(inputs)
     system = _PLANNER_SYSTEM.format(tools=registry.describe_for_planner())
 
     user_parts = [f"User goal: {query or '(no text query provided)'}"]
+    if manifest:
+        user_parts.append(f"\n{manifest}")
     user_parts.append(f"\nUploaded inputs:\n{digest}")
     if clarification_history:
         user_parts.append(

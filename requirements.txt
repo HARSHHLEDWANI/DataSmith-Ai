@@ -14,6 +14,7 @@ Pillow==11.1.0
 PyMuPDF==1.25.1
 mutagen==1.47.0
 youtube-transcript-api==1.2.4
+yt-dlp==2025.6.30  # audio fallback when captions fail; bump periodically (YouTube changes break old versions)
 
 # HTTP
 httpx==0.28.1

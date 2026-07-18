@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     groq_base_url: str = "https://api.groq.com/openai/v1"
     whisper_model: str = "whisper-large-v3"
 
+    yt_audio_fallback: bool = True
+    yt_fallback_max_duration_s: int = 900
+    yt_fallback_max_bytes: int = 24 * 1024 * 1024  # stay under Groq's 25MB upload cap
+
     max_file_size_mb: int = 25
     request_timeout_s: float = 60.0
     llm_timeout_s: float = 60.0
