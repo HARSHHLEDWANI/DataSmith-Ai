@@ -317,6 +317,81 @@ textarea#messageInput:focus { outline: none; }
 
 .hint { font-family: var(--mono); font-size: 11px; color: var(--faint); margin: var(--sp2) 2px 0; }
 
+/* Composer options: "review plan first" toggle */
+.composer-opts { margin: var(--sp2) 2px 0; }
+.review-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp2);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.review-toggle input { accent-color: var(--accent); cursor: pointer; }
+
+/* Secondary / ghost button */
+.ghost {
+  font-family: var(--sans);
+  font-size: 13px;
+  background: none;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: var(--sp2) var(--sp3);
+  cursor: pointer;
+}
+.ghost:hover { border-color: var(--accent); color: var(--ink); }
+.ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Editable plan review */
+.plan-editor { margin-top: var(--sp3); }
+.plan-editor-head { font-size: 13px; color: var(--muted); margin-bottom: var(--sp3); }
+.plan-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp2); }
+.plan-step-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp2) var(--sp3);
+  background: var(--bg);
+}
+.plan-step-card.dragging { opacity: 0.5; border-color: var(--accent); }
+.psc-head { display: flex; align-items: center; gap: var(--sp2); font-family: var(--mono); font-size: 12px; }
+.psc-head .drag { cursor: grab; color: var(--faint); user-select: none; }
+.psc-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--tint); color: var(--muted); font-size: 11px; flex: none;
+}
+.psc-tool { font-family: var(--mono); font-size: 12px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--accent); }
+.psc-dep { color: var(--faint); font-size: 11px; }
+.psc-del { margin-left: auto; background: none; border: none; color: var(--faint); cursor: pointer; font-size: 13px; }
+.psc-del:hover { color: var(--red); }
+.psc-desc { font-size: 13px; color: var(--ink); margin: var(--sp1) 0; }
+.psc-instr {
+  width: 100%; resize: vertical; min-height: 30px;
+  font-family: var(--sans); font-size: 13px;
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: var(--sp1) var(--sp2); background: var(--bg); color: var(--ink);
+}
+.psc-instr:focus { outline: none; border-color: var(--accent); }
+.add-step { display: flex; gap: var(--sp2); margin-top: var(--sp2); align-items: center; }
+.add-step .add-tool { font-family: var(--mono); font-size: 12px; padding: var(--sp1) var(--sp2); border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+.add-step .add-instr { flex: 1; font-family: var(--sans); font-size: 13px; padding: var(--sp1) var(--sp2); border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--ink); }
+.add-step .add-instr:focus { outline: none; border-color: var(--accent); }
+.add-step .add-btn { font-family: var(--mono); font-size: 12px; background: none; border: 1px dashed var(--border); border-radius: 4px; padding: var(--sp1) var(--sp2); color: var(--muted); cursor: pointer; }
+.add-step .add-btn:hover { border-color: var(--accent); color: var(--accent); }
+.plan-actions { display: flex; gap: var(--sp2); margin-top: var(--sp3); }
+
+/* Execution warnings + re-plan */
+.warnings {
+  font-family: var(--mono); font-size: 12px; color: var(--amber);
+  border: 1px solid var(--border); border-left: 2px solid var(--amber);
+  border-radius: var(--radius); padding: var(--sp1) var(--sp2); margin: var(--sp2) 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.answer.muted { color: var(--muted); font-style: italic; }
+.replan-btn { margin-top: var(--sp3); }
+
 @media (max-width: 420px) {
   .chat { padding: var(--sp4); }
   .msg.user { max-width: 92%; }

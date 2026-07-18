@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass, field
+from typing import Any
 
-from app.agent.trace import RunState
+from app.agent.trace import Plan, RunState
 from app.ingestion.models import ExtractedInput
 
 
@@ -46,6 +48,40 @@ class RunStore:
 
 
 @dataclass
+class StagedPlan:
+    """A generated plan awaiting user review/edit before execution. Holds the
+    ingested context so /execute doesn't need the files re-uploaded."""
+
+    plan_id: str
+    conversation_id: str
+    query: str
+    inputs: list[ExtractedInput]  # effective inputs (carried + new) used for execution
+    new_inputs: list[ExtractedInput] = field(default_factory=list)  # this turn's raw uploads
+    manifest: str = ""
+    detected_refs: list[dict[str, Any]] = field(default_factory=list)
+    history: list[str] = field(default_factory=list)
+    plan: Plan | None = None
+
+
+class PlanStore:
+    """In-memory, capacity-bounded store of staged plans (FIFO eviction).
+    Fits the Render free-tier single-instance model like RunStore."""
+
+    def __init__(self, capacity: int = 64) -> None:
+        self._plans: OrderedDict[str, StagedPlan] = OrderedDict()
+        self._capacity = capacity
+
+    def put(self, staged: StagedPlan) -> None:
+        self._plans[staged.plan_id] = staged
+        self._plans.move_to_end(staged.plan_id)
+        while len(self._plans) > self._capacity:
+            self._plans.popitem(last=False)
+
+    def get(self, plan_id: str) -> StagedPlan | None:
+        return self._plans.get(plan_id)
+
+
+@dataclass
 class Conversation:
 
     inputs: list[ExtractedInput] = field(default_factory=list)
@@ -70,4 +106,5 @@ class ConversationStore:
 
 session_store = SessionStore()
 run_store = RunStore()
+plan_store = PlanStore()
 conversation_store = ConversationStore()

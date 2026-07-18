@@ -8,9 +8,11 @@ from pathlib import Path
 from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from pydantic import BaseModel
 
-from app.agent.orchestrator import orchestrator
-from app.agent.session_store import run_store
+from app.agent.orchestrator import PlanNotFoundError, PreparedPlan, orchestrator
+from app.agent.plan_ops import validate_edited_steps
+from app.agent.session_store import plan_store, run_store
 from app.agent.trace import RunState
 from app.config import settings
 from app.ingestion.models import ExtractedInput
@@ -134,6 +136,157 @@ def _serialize_state(state: RunState, conversation_id: str) -> dict[str, object]
         "clarification": state.clarifying_question,
         "error": state.error,
     }
+
+
+def _serialize_prepared(p: PreparedPlan) -> dict[str, object]:
+    return {
+        "conversation_id": p.conversation_id,
+        "plan_id": p.plan_id,
+        "needs_clarification": p.clarifying_question is not None,
+        "clarifying_question": p.clarifying_question,
+        "steps": p.steps,
+        "detected_inputs": p.detected_refs,
+        "input_manifest": p.manifest,
+        "cost": p.cost.model_dump() if p.cost else None,
+        "available_tools": register_all_tools().as_list(),
+    }
+
+
+@app.post("/plan")
+async def plan_endpoint(
+    message: str = Form(default=""),
+    conversation_id: str = Form(default=""),
+    replan_notes: str = Form(default=""),
+    files: list[UploadFile] | None = None,
+) -> JSONResponse:
+    """Stage 1: ingest + plan, but do NOT execute. Returns an editable plan."""
+    conversation_id = conversation_id or uuid.uuid4().hex
+    inputs = await _ingest_uploads(files or [])
+    if message.strip():
+        inputs.append(extract_plain(message, source="user_query"))
+
+    try:
+        prepared = await orchestrator.prepare_plan(
+            conversation_id=conversation_id,
+            query=message,
+            inputs=inputs,
+            replan_notes=replan_notes or None,
+        )
+    except LLMError as exc:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "conversation_id": conversation_id,
+                "plan_id": None,
+                "error": str(exc),
+                "steps": [],
+                "needs_clarification": False,
+                "extracted_inputs": [i.model_dump() for i in inputs],
+            },
+        )
+
+    body = _serialize_prepared(prepared)
+    body["extracted_inputs"] = [i.model_dump() for i in inputs]
+    return JSONResponse(content=body)
+
+
+class ExecuteRequest(BaseModel):
+    plan_id: str
+    conversation_id: str = ""
+    steps: list[dict] = []
+
+
+@app.post("/execute")
+async def execute_endpoint(req: ExecuteRequest) -> JSONResponse:
+    """Stage 2a: validate the (possibly edited) plan and mint a run_id. Actual
+    execution happens when the client opens the execute_stream for that run."""
+    staged = plan_store.get(req.plan_id)
+    if staged is None:
+        raise HTTPException(status_code=404, detail="Unknown or expired plan_id — re-plan first.")
+
+    validated, warnings = validate_edited_steps(req.steps, register_all_tools())
+    staged.plan = validated
+    run_id = uuid.uuid4().hex
+    run_store.create(run_id)
+    return JSONResponse(
+        content={"run_id": run_id, "plan_id": req.plan_id, "warnings": warnings, "executable": True}
+    )
+
+
+def _step_view(step) -> dict[str, object]:
+    return {
+        "id": step.step,
+        "tool": step.tool,
+        "status": step.status,
+        "description": step.reasoning,
+        "duration_ms": step.duration_ms,
+        "output_preview": (step.output or "")[:240],
+        "error": step.error,
+    }
+
+
+def _progress_event(state: RunState) -> dict[str, object]:
+    return {
+        "type": "progress",
+        "current_step": state.current_step,
+        "steps": [_step_view(s) for s in state.steps],
+    }
+
+
+@app.get("/runs/{run_id}/execute_stream")
+async def execute_stream(run_id: str, plan_id: str) -> StreamingResponse:
+    """Stage 2b: run the staged plan, emitting live per-step SSE events. Execution
+    happens inside this request (no background worker); disconnect cancels it."""
+    staged = plan_store.get(plan_id)
+    if staged is None or staged.plan is None:
+        raise HTTPException(status_code=404, detail="Unknown or expired plan_id — re-plan first.")
+    plan = staged.plan
+
+    async def event_gen():
+        queue: asyncio.Queue = asyncio.Queue()
+        sentinel = object()
+
+        async def progress(state: RunState) -> None:
+            await queue.put(_progress_event(state))
+
+        async def drive() -> None:
+            try:
+                state = await orchestrator.execute_staged(
+                    run_id=run_id, plan_id=plan_id, plan=plan, progress=progress
+                )
+                await queue.put(
+                    {
+                        "type": "answer",
+                        "final_answer": state.final_answer,
+                        "any_failed": any(s.status == "failure" for s in state.steps),
+                    }
+                )
+            except (PlanNotFoundError, LLMError) as exc:
+                await queue.put({"type": "error", "message": str(exc)})
+            except Exception as exc:  # never leave the stream hanging
+                logger.warning("execute_stream failed", extra={"data": {"error": str(exc)}})
+                await queue.put({"type": "error", "message": str(exc)})
+            finally:
+                await queue.put(sentinel)
+
+        task = asyncio.create_task(drive())
+        yield f"data: {json.dumps({'type': 'run_started', 'run_id': run_id, 'total_steps': len(plan.plan)})}\n\n"
+        try:
+            while True:
+                item = await queue.get()
+                if item is sentinel:
+                    break
+                yield f"data: {json.dumps(item)}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/runs/{run_id}/status")

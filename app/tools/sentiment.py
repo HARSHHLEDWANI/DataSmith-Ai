@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.llm.client import llm_client
-from app.tools.registry import Tool, ToolContext, registry
+from app.tools.registry import Tool, ToolContext, apply_instructions, registry
 
 LABELS = {"positive", "negative", "neutral", "mixed"}
 
@@ -21,7 +21,7 @@ async def sentiment(ctx: ToolContext) -> str:
         return "Sentiment: neutral\nConfidence: 0%\nJustification: No text provided."
     messages = [
         {"role": "system", "content": _SYSTEM},
-        {"role": "user", "content": f"Text:\n\n{text}"},
+        {"role": "user", "content": apply_instructions(ctx, f"Text:\n\n{text}")},
     ]
     return await llm_client.chat(messages, temperature=0.0, max_tokens=200)
 

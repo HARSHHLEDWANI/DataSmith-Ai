@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.llm.client import llm_client
-from app.tools.registry import Tool, ToolContext, registry, truncate_for_llm
+from app.tools.registry import Tool, ToolContext, apply_instructions, registry, truncate_for_llm
 
 _SYSTEM = (
     "You are a cross-document analysis engine. You are given several inputs from "
@@ -30,7 +30,7 @@ async def compare(ctx: ToolContext) -> str:
         {"role": "system", "content": _SYSTEM},
         {
             "role": "user",
-            "content": f"User question: {ctx.query}\n\nInputs:\n\n{body}",
+            "content": apply_instructions(ctx, f"User question: {ctx.query}\n\nInputs:\n\n{body}"),
         },
     ]
     return await llm_client.chat(messages, temperature=0.3, max_tokens=1000)

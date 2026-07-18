@@ -99,6 +99,7 @@ async def make_plan(
     registry: ToolRegistry,
     clarification_history: list[str] | None = None,
     manifest: str | None = None,
+    replan_notes: str | None = None,
 ) -> Plan:
     digest = build_context_digest(inputs)
     system = _PLANNER_SYSTEM.format(tools=registry.describe_for_planner())
@@ -106,6 +107,11 @@ async def make_plan(
     user_parts = [f"User goal: {query or '(no text query provided)'}"]
     if manifest:
         user_parts.append(f"\n{manifest}")
+    if replan_notes:
+        user_parts.append(
+            "\nRe-planning feedback (a previous attempt had a problem — adjust the plan "
+            f"to work around it):\n{replan_notes}"
+        )
     user_parts.append(f"\nUploaded inputs:\n{digest}")
     if clarification_history:
         user_parts.append(

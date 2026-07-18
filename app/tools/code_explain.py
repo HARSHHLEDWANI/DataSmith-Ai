@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.llm.client import llm_client
-from app.tools.registry import Tool, ToolContext, registry
+from app.tools.registry import Tool, ToolContext, apply_instructions, registry
 
 _SYSTEM = (
     "You are an expert code reviewer. Analyse the provided code and reply in "
@@ -20,7 +20,7 @@ async def code_explain(ctx: ToolContext) -> str:
         return "No code provided to explain."
     messages = [
         {"role": "system", "content": _SYSTEM},
-        {"role": "user", "content": f"Code:\n\n```\n{code}\n```"},
+        {"role": "user", "content": apply_instructions(ctx, f"Code:\n\n```\n{code}\n```")},
     ]
     return await llm_client.chat(messages, temperature=0.1, max_tokens=800)
 

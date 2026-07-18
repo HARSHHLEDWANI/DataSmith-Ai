@@ -22,8 +22,9 @@ class StepResult(BaseModel):
 class PlanStep(BaseModel):
     step: int
     tool: str
-    input_from: str = "context"  
+    input_from: str = "context"
     reasoning: str = ""
+    instructions: str = ""
 
 
 class Plan(BaseModel):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.llm.client import llm_client
-from app.tools.registry import Tool, ToolContext, registry
+from app.tools.registry import Tool, ToolContext, apply_instructions, registry
 
 _SYSTEM = (
     "You are a helpful, concise assistant. Answer the user's question using the "
@@ -21,7 +21,7 @@ async def qa(ctx: ToolContext) -> str:
         user_block = f"Context:\n{context}\n\n{user_block}"
     messages = [
         {"role": "system", "content": _SYSTEM},
-        {"role": "user", "content": user_block},
+        {"role": "user", "content": apply_instructions(ctx, user_block)},
     ]
     return await llm_client.chat(messages, temperature=0.4, max_tokens=900)
 

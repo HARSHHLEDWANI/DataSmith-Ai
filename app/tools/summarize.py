@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.llm.client import llm_client
-from app.tools.registry import Tool, ToolContext, registry
+from app.tools.registry import Tool, ToolContext, apply_instructions, registry
 
 _SYSTEM = (
     "You are a precise summarization engine. You ALWAYS reply in EXACTLY this "
@@ -24,7 +24,7 @@ async def summarize(ctx: ToolContext) -> str:
         {"role": "system", "content": _SYSTEM},
         {
             "role": "user",
-            "content": f"Summarize the following content:\n\n{text}",
+            "content": apply_instructions(ctx, f"Summarize the following content:\n\n{text}"),
         },
     ]
     return await llm_client.chat(messages, temperature=0.2, max_tokens=700)

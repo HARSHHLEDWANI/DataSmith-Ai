@@ -69,7 +69,8 @@ async def execute_plan(
                 upstream = outputs_by_step.get(ref, "")
             except ValueError:
                 upstream = ""
-        ctx = ToolContext(inputs=inputs, query=query, upstream=upstream)
+        params = {"instructions": spec.instructions} if spec.instructions else {}
+        ctx = ToolContext(inputs=inputs, query=query, upstream=upstream, params=params)
         result.input_summary = _summarize_io(upstream or ctx.combined_text() or query, limit=200)
 
         output = await _run_with_retry(tool.func, ctx, result)

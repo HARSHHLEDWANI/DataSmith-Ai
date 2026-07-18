@@ -34,6 +34,18 @@ class ToolContext:
         combined = self.combined_text()
         return combined if combined.strip() else self.query
 
+    def instructions(self) -> str:
+        return str(self.params.get("instructions", "")).strip()
+
+
+def apply_instructions(ctx: ToolContext, user_msg: str) -> str:
+    """Append the user's per-step steering instruction (from the editable plan)
+    to a tool's user message, when present. No-op otherwise."""
+    extra = ctx.instructions()
+    if not extra:
+        return user_msg
+    return f"{user_msg}\n\nAdditional user instruction for this step: {extra}"
+
 
 ToolFn = Callable[[ToolContext], Awaitable[str]]
 
